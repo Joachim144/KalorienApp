@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- iPhone Web-App Optimierungen -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kalorien Joachim">
+    
+    <title>Joachims Kalorien Tracker</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: calc(env(safe-area-inset-top) + 15px) 15px calc(env(safe-area-inset-bottom) + 20px) 15px;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 1050px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 18px;
+            color: #ffffff;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-top: 6px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .stat-value { font-size: 24px; }
+            h1 { text-align: left; font-size: 28px; }
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 220px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+        }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            margin-bottom: 10px;
+            color: var(--text-muted);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        @media (min-width: 600px) {
+            form {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+        }
+
+        input, button {
+            padding: 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 16px;
+            background: #0f172a;
+            color: #fff;
+            width: 100%;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        input:focus {
+            outline: 2px solid var(--primary);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-secondary { background: #475569; }
+        .btn-warning { background: var(--warning); color: #000; }
+
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            min-width: 500px;
+        }
+
+        th, td {
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        th {
+            background: #0f172a;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .delete-btn {
+            background: var(--danger);
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 8px;
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Kalorien Tracker – Joachim</h1>
+
+    <!-- KPI Dashboard -->
+    <div class="stats-grid">
+        <div class="card">
+            <div class="stat-label">Gesamtdefizit</div>
+            <div class="stat-value" id="total-deficit" style="color: var(--success);">0 kcal</div>
+        </div>
+        <div class="card">
+            <div class="stat-label">Fettabbau</div>
+            <div class="stat-value" id="fat-loss">0.00 kg</div>
+        </div>
+        <div class="card">
+            <div class="stat-label">Tagesziel</div>
+            <div class="stat-value" style="color: #ffffff;">2.000 kcal</div>
+        </div>
+    </div>
+
+    <!-- Interaktive Diagramme -->
+    <div class="charts-grid">
+        <div class="card">
+            <h2>Tägliche Kalorien & Sport</h2>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background:#3b82f6;"></div>Zufuhr</div>
+                <div class="legend-item"><div class="legend-color" style="background:#10b981;"></div>Sport</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Verlauf Gesamtdefizit (kcal)</h2>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background:#10b981;"></div>Defizit (kumuliert)</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="lineChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eingabeformular -->
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>Neuen Tag eintragen</h2>
+        <form id="entry-form">
+            <input type="date" id="date" required>
+            <input type="number" id="intake" inputmode="numeric" placeholder="Zufuhr (kcal)" required>
+            <input type="number" id="burn" inputmode="numeric" placeholder="Sport (kcal)" value="0">
+            <button type="submit">Speichern</button>
+        </form>
+    </div>
+
+    <!-- Datenverzeichnis & Backup -->
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>Verwaltung & Backup</h2>
+        <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+            <button onclick="exportData()" class="btn-secondary">Backup herunterladen (JSON)</button>
+            <input type="file" id="import-file" accept=".json" onchange="importData(event)" style="display:none;">
+            <button onclick="document.getElementById('import-file').click()" class="btn-secondary">JSON importieren</button>
+            <button onclick="resetToDefault()" class="btn-warning">Standarddaten wiederherstellen</button>
+        </div>
+    </div>
+
+    <!-- Datentabelle -->
+    <h2>Historie</h2>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Zufuhr</th>
+                    <th>Sport</th>
+                    <th>Effektiv</th>
+                    <th>Defizit</th>
+                    <th>Aktion</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const GOAL = 2000;
+    
+    const initialData = [
+        { date: '2026-09-01', intake: 1200, burn: 0 },
+        { date: '2026-09-02', intake: 1190, burn: 0 },
+        { date: '2026-09-03', intake: 1420, burn: 351 },
+        { date: '2026-09-04', intake: 1555, burn: 600 },
+        { date: '2026-09-05', intake: 1820, burn: 0 },
+        { date: '2026-09-06', intake: 1950, burn: 233 },
+        { date: '2026-09-07', intake: 1220, burn: 0 },
+        { date: '2026-09-08', intake: 1160, burn: 0 },
+        { date: '2026-09-09', intake: 1220, burn: 110 },
+        { date: '2026-09-10', intake: 1625, burn: 0 },
+        { date: '2026-09-11', intake: 2440, burn: 0 },
+        { date: '2026-09-12', intake: 1330, burn: 745 },
+        { date: '2026-09-13', intake: 1650, burn: 0 },
+        { date: '2026-09-14', intake: 1470, burn: 380 },
+        { date: '2026-09-15', intake: 1570, burn: 0 },
+        { date: '2026-09-16', intake: 1305, burn: 120 }
+    ];
+
+    let entries = JSON.parse(localStorage.getItem('fitness_entries')) || initialData;
+
+    function drawBarChart(data) {
+        const canvas = document.getElementById('barChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+        const w = rect.width;
+        const h = rect.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!data.length) return;
+
+        const maxVal = Math.max(...data.map(d => Math.max(d.intake, d.burn)), 2500);
+        const paddingLeft = 35;
+        const paddingBottom = 25;
+        const graphW = w - paddingLeft - 10;
+        const graphH = h - paddingBottom - 10;
+
+        // Hilfslinien
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, 10);
+        ctx.lineTo(paddingLeft, h - paddingBottom);
+        ctx.lineTo(w - 10, h - paddingBottom);
+        ctx.stroke();
+
+        const groupWidth = graphW / data.length;
+        const barWidth = Math.max((groupWidth - 6) / 2, 3);
+
+        data.forEach((d, i) => {
+            const xBase = paddingLeft + i * groupWidth + 3;
+
+            // Zufuhr Balken (Blau)
+            const hIntake = (d.intake / maxVal) * graphH;
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(xBase, h - paddingBottom - hIntake, barWidth, hIntake);
+
+            // Sport Balken (Grün)
+            if (d.burn > 0) {
+                const hBurn = (d.burn / maxVal) * graphH;
+                ctx.fillStyle = '#10b981';
+                ctx.fillRect(xBase + barWidth + 2, h - paddingBottom - hBurn, barWidth, hBurn);
+            }
+
+            // Datum-Beschriftung
+            if (data.length <= 16 || i % 2 === 0) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.date.slice(8), xBase + barWidth, h - 8);
+            }
+        });
+    }
+
+    function drawLineChart(data) {
+        const canvas = document.getElementById('lineChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+        const w = rect.width;
+        const h = rect.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (!data.length) return;
+
+        let running = 0;
+        const points = data.map(d => {
+            running += (GOAL - (d.intake - d.burn));
+            return running;
+        });
+
+        const maxVal = Math.max(...points, 1000);
+        const minVal = Math.min(...points, 0);
+        const paddingLeft = 40;
+        const paddingBottom = 25;
+        const graphW = w - paddingLeft - 10;
+        const graphH = h - paddingBottom - 10;
+
+        // Achsen
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, 10);
+        ctx.lineTo(paddingLeft, h - paddingBottom);
+        ctx.lineTo(w - 10, h - paddingBottom);
+        ctx.stroke();
+
+        // Linie zeichnen
+        ctx.beginPath();
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2;
+
+        const step = graphW / Math.max(points.length - 1, 1);
+
+        points.forEach((val, i) => {
+            const x = paddingLeft + i * step;
+            const y = h - paddingBottom - ((val - minVal) / (maxVal - minVal || 1)) * graphH;
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Datum Beschriftung
+        data.forEach((d, i) => {
+            if (data.length <= 16 || i % 2 === 0) {
+                const x = paddingLeft + i * step;
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.date.slice(8), x, h - 8);
+            }
+        });
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+        let totalDeficit = 0;
+
+        const sortedChronological = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const sortedTable = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        sortedTable.forEach((item) => {
+            const effektiv = item.intake - item.burn;
+            const deficit = GOAL - effektiv;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.date}</td>
+                <td>${item.intake} kcal</td>
+                <td>${item.burn > 0 ? '-' + item.burn : '–'}</td>
+                <td><strong>${effektiv}</strong></td>
+                <td style="color: ${deficit >= 0 ? '#10b981' : '#ef4444'}; font-weight: bold;">
+                    ${deficit >= 0 ? '~ ' + deficit : '+ ' + Math.abs(deficit)}
+                </td>
+                <td><button class="delete-btn" onclick="deleteEntry('${item.date}')">Löschen</button></td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        sortedChronological.forEach(item => {
+            totalDeficit += (GOAL - (item.intake - item.burn));
+        });
+
+        document.getElementById('total-deficit').innerText = `~ ${totalDeficit.toLocaleString()} kcal`;
+        document.getElementById('fat-loss').innerText = `ca. ${(totalDeficit / 7000).toFixed(2)} kg`;
+
+        localStorage.setItem('fitness_entries', JSON.stringify(entries));
+
+        // Grafik-Updates
+        setTimeout(() => {
+            drawBarChart(sortedChronological);
+            drawLineChart(sortedChronological);
+        }, 50);
+    }
+
+    function deleteEntry(date) {
+        entries = entries.filter(item => item.date !== date);
+        renderTable();
+    }
+
+    function resetToDefault() {
+        if (confirm("Auf Standarddaten zurücksetzen?")) {
+            localStorage.removeItem('fitness_entries');
+            entries = [...initialData];
+            renderTable();
+        }
+    }
+
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(entries, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "kalorien_backup_joachim.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    function importData(event) {
+        const fileReader = new FileReader();
+        fileReader.onload = function(e) {
+            try {
+                const importedEntries = JSON.parse(e.target.result);
+                if (Array.isArray(importedEntries)) {
+                    entries = importedEntries;
+                    renderTable();
+                    alert('Daten erfolgreich importiert!');
+                }
+            } catch (err) {
+                alert('Fehler beim Importieren.');
+            }
+        };
+        fileReader.readAsText(event.target.files[0]);
+    }
+
+    document.getElementById('entry-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const date = document.getElementById('date').value;
+        const intake = parseInt(document.getElementById('intake').value);
+        const burn = parseInt(document.getElementById('burn').value) || 0;
+
+        const existingIndex = entries.findIndex(item => item.date === date);
+        if (existingIndex !== -1) {
+            entries[existingIndex] = { date, intake, burn };
+        } else {
+            entries.push({ date, intake, burn });
+        }
+
+        renderTable();
+
+        document.getElementById('intake').value = '';
+        document.getElementById('burn').value = '0';
+    });
+
+    document.getElementById('date').valueAsDate = new Date();
+
+    window.addEventListener('load', renderTable);
+    window.addEventListener('resize', renderTable);
+</script>
+
+</body>
+</html>
